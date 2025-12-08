@@ -8,16 +8,37 @@
 </head>
 <body class="bg-light">
 
-<nav class="navbar navbar-dark bg-dark mb-4">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container">
-        <a class="navbar-brand" href="/products">Products</a>
+        <a class="navbar-brand" href="/products">Cloud App (Test)
+		</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="/products">Products</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/products/summary">Summary</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/cart">Cart</a>
+                </li>
+            </ul>
+        </div>
     </div>
 </nav>
 
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>Product List</h2>
-        <a class="btn btn-primary" href="/products/new">Add Product</a>
+        <div>
+            <a class="btn btn-outline-secondary me-2" href="/products/summary">Summary</a>
+            <a class="btn btn-primary" href="/products/new">Add Product</a>
+        </div>
     </div>
 
     <div th:if="${#lists.isEmpty(products)}">
@@ -35,7 +56,7 @@
                     <th>Description</th>
                     <th class="text-end">Price</th>
                     <th class="text-end">Quantity</th>
-                    <th style="width: 220px;">Actions</th>
+                    <th style="width: 260px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -46,9 +67,20 @@
                     <td class="text-end" th:text="${product.price}"></td>
                     <td class="text-end" th:text="${product.quantity}"></td>
                     <td>
-                        <a class="btn btn-sm btn-info me-1" th:href="@{/products/{id}(id=${product.id})}">Details</a>
-                        <a class="btn btn-sm btn-warning me-1" th:href="@{/products/edit/{id}(id=${product.id})}">Edit</a>
-                        <a class="btn btn-sm btn-danger" th:href="@{/products/delete/{id}(id=${product.id})}"
+                        <a class="btn btn-sm btn-success me-1"
+                           th:href="@{/cart/add/{id}(id=${product.id})}">
+                            Add to Cart
+                        </a>
+                        <a class="btn btn-sm btn-info me-1"
+                           th:href="@{/products/{id}(id=${product.id})}">
+                            Details
+                        </a>
+                        <a class="btn btn-sm btn-warning me-1"
+                           th:href="@{/products/edit/{id}(id=${product.id})}">
+                            Edit
+                        </a>
+                        <a class="btn btn-sm btn-danger"
+                           th:href="@{/products/delete/{id}(id=${product.id})}"
                            onclick="return confirm('Are you sure you want to delete this product?');">
                             Delete
                         </a>

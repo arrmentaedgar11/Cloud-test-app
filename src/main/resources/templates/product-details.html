@@ -7,9 +7,26 @@
 </head>
 <body class="bg-light">
 
-<nav class="navbar navbar-dark bg-dark mb-4">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container">
-        <a class="navbar-brand" href="/products">Cloud Test App - Products</a>
+        <a class="navbar-brand" href="/products">Cloud Test App</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/products">Products</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/products/summary">Summary</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/cart">Cart</a>
+                </li>
+            </ul>
+        </div>
     </div>
 </nav>
 
@@ -35,7 +52,14 @@
                 <span th:text="${product.quantity}">0</span>
             </p>
 
-            <a class="btn btn-warning me-2" th:href="@{/products/edit/{id}(id=${product.id})}">Edit</a>
+            <a class="btn btn-success me-2"
+               th:href="@{/cart/add/{id}(id=${product.id})}">
+                Add to Cart
+            </a>
+            <a class="btn btn-warning me-2"
+               th:href="@{/products/edit/{id}(id=${product.id})}">
+                Edit
+            </a>
             <a class="btn btn-secondary" href="/products">Back to List</a>
         </div>
     </div>
