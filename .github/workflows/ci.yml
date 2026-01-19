@@ -1,22 +1,14 @@
-<<<<<<< HEAD
-name: CI
-=======
 name: CI/CD - Build and Deploy to Elastic Beanstalk
->>>>>>> c23aac0c548ddbb2f322cef46a699c771885865d
 
 on:
   push:
     branches: [ "main" ]
-<<<<<<< HEAD
-  pull_request:
-    branches: [ "main" ]
 
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-=======
+env:
+  AWS_REGION: us-east-1
+  EB_APPLICATION_NAME: Productapp2
+  EB_ENVIRONMENT_NAME: productapp2-dev
+  S3_BUCKET: elasticbeanstalk-us-east-1-553853354751  # <-- put YOUR EB S3 bucket name here
 
 jobs:
   build-and-deploy:
@@ -24,79 +16,64 @@ jobs:
 
     steps:
       - name: Checkout
->>>>>>> c23aac0c548ddbb2f322cef46a699c771885865d
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
           cache: maven
 
-<<<<<<< HEAD
-      - name: Run tests
-        run: ./mvnw -B test
+      - name: Make mvnw executable
+        run: chmod +x mvnw
 
-      - name: Build jar
-        run: ./mvnw -B package -DskipTests
-
-      - name: Prepare deploy bundle (zip)
-        run: |
-          JAR_PATH=$(ls target/*SNAPSHOT.jar | head -n 1)
-          cp "$JAR_PATH" application.jar
-          zip -r deploy.zip application.jar Procfile
-
-      - name: Upload deploy artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: deploy-bundle
-          path: deploy.zip
-
-  deploy-to-elasticbeanstalk:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-   
-    if: github.event_name == 'push'
-    steps:
-      - name: Download deploy artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: deploy-bundle
-
-      - name: Deploy to Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v22
-        with:
-          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          application_name: Productapp2
-          environment_name: productapp2-dev
-          region: us-east-1
-          version_label: github-${{ github.run_number }}
-          deployment_package: deploy.zip
-          # This bucket already exists in most EB accounts; update if yours differs:
-          bucket_name: elasticbeanstalk-us-east-1-553853354751
-=======
-      - name: Build JAR
+      - name: Build JAR (skip tests)
         run: ./mvnw -B clean package -DskipTests
 
-      - name: Prepare Beanstalk bundle
+      - name: Prepare Elastic Beanstalk bundle
         run: |
+          rm -rf deploy app.zip
           mkdir -p deploy
-          cp target/*.jar deploy/application.jar
-          cp Procfile deploy/Procfile
-          cd deploy
-          zip -r ../beanstalk-bundle.zip .
 
-      - name: Deploy to Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v21
+          # Put the built JAR into the bundle using a fixed name
+          cp target/*.jar deploy/application.jar
+
+          # Procfile must be at the root of the zip
+          cp Procfile deploy/Procfile
+
+          # Include web.config only if your repo has it (optional)
+          if [ -f web.config ]; then cp web.config deploy/web.config; fi
+
+          # Create zip from deploy folder contents (root files)
+          (cd deploy && zip -r ../app.zip .)
+
+      - name: Configure AWS credentials (from GitHub Secrets)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: us-east-1
-          application_name: Productapp2
-          environment_name: productapp2-dev
-          version_label: app-${{ github.sha }}
-          deployment_package: beanstalk-bundle.zip
-          existing_bucket_name: elasticbeanstalk-us-east-1-553853354751
->>>>>>> c23aac0c548ddbb2f322cef46a699c771885865d
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload bundle to S3
+        run: |
+          VERSION_LABEL="github-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
+          echo "VERSION_LABEL=$VERSION_LABEL" >> $GITHUB_ENV
+
+          S3_KEY="${EB_APPLICATION_NAME}/${VERSION_LABEL}.zip"
+          echo "S3_KEY=$S3_KEY" >> $GITHUB_ENV
+
+          aws s3 cp app.zip "s3://${S3_BUCKET}/${S3_KEY}"
+
+      - name: Create new Elastic Beanstalk application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name "${EB_APPLICATION_NAME}" \
+            --version-label "${VERSION_LABEL}" \
+            --source-bundle S3Bucket="${S3_BUCKET}",S3Key="${S3_KEY}"
+
+      - name: Deploy new version to Elastic Beanstalk environment
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name "${EB_ENVIRONMENT_NAME}" \
+            --version-label "${VERSION_LABEL}"
