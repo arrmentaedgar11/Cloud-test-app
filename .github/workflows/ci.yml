@@ -3,25 +3,16 @@ name: CI/CD - Build and Deploy to Elastic Beanstalk
 on:
   push:
     branches: [ "main" ]
-<<<<<<< HEAD
 
 env:
   AWS_REGION: us-east-1
   EB_APPLICATION_NAME: Productapp2
   EB_ENVIRONMENT_NAME: productapp2-dev
   S3_BUCKET: elasticbeanstalk-us-east-1-553853354751  # <-- put YOUR EB S3 bucket name here
-=======
->>>>>>> c681c5cceeafbe3ae2f241bfb22015658880569b
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
-    env:
-      AWS_REGION: us-east-1
-      EB_APPLICATION_NAME: Productapp2
-      EB_ENVIRONMENT_NAME: productapp2-dev
-      S3_BUCKET: elasticbeanstalk-us-east-1-553853354751
 
     steps:
       - name: Checkout
@@ -34,25 +25,16 @@ jobs:
           java-version: "17"
           cache: maven
 
-<<<<<<< HEAD
-=======
-      # Fix for your error: mvnw is not executable on Linux runners
->>>>>>> c681c5cceeafbe3ae2f241bfb22015658880569b
       - name: Make mvnw executable
         run: chmod +x mvnw
 
       - name: Build JAR (skip tests)
         run: ./mvnw -B clean package -DskipTests
 
-<<<<<<< HEAD
-=======
-      # Create a deploy bundle for Elastic Beanstalk (zip must include Jar + Procfile + optional web.config)
->>>>>>> c681c5cceeafbe3ae2f241bfb22015658880569b
       - name: Prepare Elastic Beanstalk bundle
         run: |
           rm -rf deploy app.zip
           mkdir -p deploy
-<<<<<<< HEAD
 
           # Put the built JAR into the bundle using a fixed name
           cp target/*.jar deploy/application.jar
@@ -65,27 +47,6 @@ jobs:
 
           # Create zip from deploy folder contents (root files)
           (cd deploy && zip -r ../app.zip .)
-=======
-          cp target/*.jar deploy/application.jar
-
-          # If you already have a Procfile in the repo root, include it
-          if [ -f Procfile ]; then
-            cp Procfile deploy/Procfile
-          else
-            # Spring Boot on EB expects a web process. This is a safe default.
-            echo "web: java -jar application.jar" > deploy/Procfile
-          fi
-
-          # If you have web.config in the repo root, include it
-          if [ -f web.config ]; then
-            cp web.config deploy/web.config
-          fi
-
-          # Zip bundle (no folder nesting; EB expects files at zip root)
-          cd deploy
-          zip -r ../app.zip .
-          cd ..
->>>>>>> c681c5cceeafbe3ae2f241bfb22015658880569b
 
       - name: Configure AWS credentials (from GitHub Secrets)
         uses: aws-actions/configure-aws-credentials@v4
@@ -96,7 +57,6 @@ jobs:
 
       - name: Upload bundle to S3
         run: |
-<<<<<<< HEAD
           VERSION_LABEL="github-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
           echo "VERSION_LABEL=$VERSION_LABEL" >> $GITHUB_ENV
 
@@ -104,22 +64,13 @@ jobs:
           echo "S3_KEY=$S3_KEY" >> $GITHUB_ENV
 
           aws s3 cp app.zip "s3://${S3_BUCKET}/${S3_KEY}"
-=======
-          VERSION_LABEL="build-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
-          echo "VERSION_LABEL=$VERSION_LABEL" >> $GITHUB_ENV
-          aws s3 cp app.zip "s3://${S3_BUCKET}/${EB_APPLICATION_NAME}/${VERSION_LABEL}.zip"
->>>>>>> c681c5cceeafbe3ae2f241bfb22015658880569b
 
       - name: Create new Elastic Beanstalk application version
         run: |
           aws elasticbeanstalk create-application-version \
             --application-name "${EB_APPLICATION_NAME}" \
             --version-label "${VERSION_LABEL}" \
-<<<<<<< HEAD
             --source-bundle S3Bucket="${S3_BUCKET}",S3Key="${S3_KEY}"
-=======
-            --source-bundle S3Bucket="${S3_BUCKET}",S3Key="${EB_APPLICATION_NAME}/${VERSION_LABEL}.zip"
->>>>>>> c681c5cceeafbe3ae2f241bfb22015658880569b
 
       - name: Deploy new version to Elastic Beanstalk environment
         run: |
