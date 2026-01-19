@@ -8,7 +8,7 @@ env:
   AWS_REGION: us-east-1
   EB_APPLICATION_NAME: Productapp2
   EB_ENVIRONMENT_NAME: productapp2-dev
-  S3_BUCKET: elasticbeanstalk-us-east-1-553853354751  # <-- put YOUR EB S3 bucket name here
+  S3_BUCKET: elasticbeanstalk-us-east-1-553853354751
 
 jobs:
   build-and-deploy:
@@ -33,20 +33,21 @@ jobs:
 
       - name: Prepare Elastic Beanstalk bundle
         run: |
-          rm -rf deploy app.zip
+          rm -rf deploy
           mkdir -p deploy
 
-          # Put the built JAR into the bundle using a fixed name
+          # Copy the built jar and rename to application.jar
           cp target/*.jar deploy/application.jar
 
-          # Procfile must be at the root of the zip
+          # Procfile MUST be at the root of the bundle
           cp Procfile deploy/Procfile
 
-          # Include web.config only if your repo has it (optional)
+          # Optional: include web.config if your project uses it
           if [ -f web.config ]; then cp web.config deploy/web.config; fi
 
-          # Create zip from deploy folder contents (root files)
-          (cd deploy && zip -r ../app.zip .)
+          # Create the zip from inside deploy so files land at ZIP root
+          cd deploy
+          zip -r ../app.zip .
 
       - name: Configure AWS credentials (from GitHub Secrets)
         uses: aws-actions/configure-aws-credentials@v4
@@ -57,23 +58,20 @@ jobs:
 
       - name: Upload bundle to S3
         run: |
-          VERSION_LABEL="github-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
-          echo "VERSION_LABEL=$VERSION_LABEL" >> $GITHUB_ENV
-
-          S3_KEY="${EB_APPLICATION_NAME}/${VERSION_LABEL}.zip"
-          echo "S3_KEY=$S3_KEY" >> $GITHUB_ENV
-
-          aws s3 cp app.zip "s3://${S3_BUCKET}/${S3_KEY}"
+          VERSION_LABEL="${GITHUB_SHA}"
+          aws s3 cp app.zip "s3://${S3_BUCKET}/${EB_APPLICATION_NAME}/${VERSION_LABEL}.zip"
 
       - name: Create new Elastic Beanstalk application version
         run: |
+          VERSION_LABEL="${GITHUB_SHA}"
           aws elasticbeanstalk create-application-version \
             --application-name "${EB_APPLICATION_NAME}" \
             --version-label "${VERSION_LABEL}" \
-            --source-bundle S3Bucket="${S3_BUCKET}",S3Key="${S3_KEY}"
+            --source-bundle S3Bucket="${S3_BUCKET}",S3Key="${EB_APPLICATION_NAME}/${VERSION_LABEL}.zip"
 
       - name: Deploy new version to Elastic Beanstalk environment
         run: |
+          VERSION_LABEL="${GITHUB_SHA}"
           aws elasticbeanstalk update-environment \
             --environment-name "${EB_ENVIRONMENT_NAME}" \
             --version-label "${VERSION_LABEL}"
