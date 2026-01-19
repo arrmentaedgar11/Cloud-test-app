@@ -6,8 +6,10 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  EB_APPLICATION_NAME: Productapp2
-  EB_ENVIRONMENT_NAME: productapp2-dev
+  APPLICATION_NAME: Productapp2
+  ENVIRONMENT_NAME: productapp2-dev
+  # This is the default EB bucket pattern for many accounts/regions.
+  # If yours is different, set it as a GitHub secret and reference it instead.
   S3_BUCKET: elasticbeanstalk-us-east-1-553853354751
 
 jobs:
@@ -23,7 +25,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          cache: maven
 
       - name: Make mvnw executable
         run: chmod +x mvnw
@@ -31,23 +32,28 @@ jobs:
       - name: Build JAR (skip tests)
         run: ./mvnw -B clean package -DskipTests
 
+      # Create a deploy bundle with a FIXED JAR NAME: application.jar
       - name: Prepare Elastic Beanstalk bundle
         run: |
           rm -rf deploy
           mkdir -p deploy
 
-          # Copy the built jar and rename to application.jar
-          cp target/*.jar deploy/application.jar
+          # Copy the built jar to a fixed filename
+          JAR_PATH=$(ls -1 target/*.jar | head -n 1)
+          cp "$JAR_PATH" deploy/application.jar
 
-          # Procfile MUST be at the root of the bundle
+          # Procfile must be at bundle root
           cp Procfile deploy/Procfile
 
-          # Optional: include web.config if your project uses it
-          if [ -f web.config ]; then cp web.config deploy/web.config; fi
+          # Only copy web.config if you have it
+          if [ -f web.config ]; then
+            cp web.config deploy/web.config
+          fi
 
-          # Create the zip from inside deploy so files land at ZIP root
+          # Zip contents of deploy/ as the EB source bundle root
           cd deploy
-          zip -r ../app.zip .
+          zip -r ../deploy.zip .
+          cd ..
 
       - name: Configure AWS credentials (from GitHub Secrets)
         uses: aws-actions/configure-aws-credentials@v4
@@ -59,19 +65,20 @@ jobs:
       - name: Upload bundle to S3
         run: |
           VERSION_LABEL="${GITHUB_SHA}"
-          aws s3 cp app.zip "s3://${S3_BUCKET}/${EB_APPLICATION_NAME}/${VERSION_LABEL}.zip"
+          S3_KEY="${APPLICATION_NAME}/${VERSION_LABEL}.zip"
+          aws s3 cp deploy.zip "s3://${S3_BUCKET}/${S3_KEY}"
+          echo "S3_KEY=${S3_KEY}" >> $GITHUB_ENV
+          echo "VERSION_LABEL=${VERSION_LABEL}" >> $GITHUB_ENV
 
       - name: Create new Elastic Beanstalk application version
         run: |
-          VERSION_LABEL="${GITHUB_SHA}"
           aws elasticbeanstalk create-application-version \
-            --application-name "${EB_APPLICATION_NAME}" \
+            --application-name "${APPLICATION_NAME}" \
             --version-label "${VERSION_LABEL}" \
-            --source-bundle S3Bucket="${S3_BUCKET}",S3Key="${EB_APPLICATION_NAME}/${VERSION_LABEL}.zip"
+            --source-bundle S3Bucket="${S3_BUCKET}",S3Key="${S3_KEY}"
 
       - name: Deploy new version to Elastic Beanstalk environment
         run: |
-          VERSION_LABEL="${GITHUB_SHA}"
           aws elasticbeanstalk update-environment \
-            --environment-name "${EB_ENVIRONMENT_NAME}" \
+            --environment-name "${ENVIRONMENT_NAME}" \
             --version-label "${VERSION_LABEL}"
