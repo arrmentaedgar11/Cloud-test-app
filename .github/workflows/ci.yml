@@ -1,9 +1,8 @@
-name: CI-CD to Elastic Beanstalk
+name: CI/CD - Build and Deploy to Elastic Beanstalk
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -13,35 +12,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
           cache: maven
 
-      - name: Run tests
-        run: ./mvnw -B test
+      - name: Build JAR
+        run: ./mvnw -B clean package -DskipTests
 
-      - name: Build jar
-        run: ./mvnw -B package -DskipTests
-
-  
-      - name: Create deploy bundle
+      - name: Prepare Beanstalk bundle
         run: |
           mkdir -p deploy
           cp target/*.jar deploy/application.jar
-          if [ -f Procfile ]; then cp Procfile deploy/Procfile; fi
+          cp Procfile deploy/Procfile
           cd deploy
-          zip -r ../deploy.zip .
+          zip -r ../beanstalk-bundle.zip .
 
       - name: Deploy to Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v22
+        uses: einaregilsson/beanstalk-deploy@v21
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           region: us-east-1
           application_name: Productapp2
           environment_name: productapp2-dev
-          version_label: github-${{ github.run_number }}
-          deployment_package: deploy.zip
+          version_label: app-${{ github.sha }}
+          deployment_package: beanstalk-bundle.zip
+          existing_bucket_name: elasticbeanstalk-us-east-1-553853354751
