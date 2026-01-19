@@ -135,12 +135,10 @@ public class ProductController {
             model.addAttribute("product", productOptional.get());
             return "product-details";
         } else {
-            logger.info("Product id {} not found, redirecting to list");
+            logger.info("Product id {} not found, redirecting to list", id);
             return "redirect:/products";
         }
     }
-
-    
 
     @SuppressWarnings("unchecked")
     private List<CartItem> getCart(HttpSession session) {

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Run tests
+        run: ./mvnw -B test
+
+      - name: Build jar
+        run: ./mvnw -B package -DskipTests
+
+      - name: Prepare deploy bundle (zip)
+        run: |
+          JAR_PATH=$(ls target/*SNAPSHOT.jar | head -n 1)
+          cp "$JAR_PATH" application.jar
+          zip -r deploy.zip application.jar Procfile
+
+      - name: Upload deploy artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-bundle
+          path: deploy.zip
+
+  deploy-to-elasticbeanstalk:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+   
+    if: github.event_name == 'push'
+    steps:
+      - name: Download deploy artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-bundle
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: Productapp2
+          environment_name: productapp2-dev
+          region: us-east-1
+          version_label: github-${{ github.run_number }}
+          deployment_package: deploy.zip
+          # This bucket already exists in most EB accounts; update if yours differs:
+          bucket_name: elasticbeanstalk-us-east-1-553853354751
